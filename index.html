@@ -1,0 +1,649 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BV Training Quizzes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single-column workbook — workflow filter, quiz index cards, then a one-question-at-a-time quiz runner. */
+:root {
+  --bg: #F5F7FA;
+  --surface: #FFFFFF;
+  --ink: #142033;
+  --muted: #586579;
+  --line: #DCE2EA;
+  --accent: #1D3F8F;       /* member-ID-card blue */
+  --accent-soft: #E6ECF8;
+  --mark: #FFE7A3;         /* EOB highlighter */
+  --mark-ink: #4A3A00;
+  --good: #1C7A4B;
+  --good-soft: #E3F3EA;
+  --bad: #B3261E;
+  --bad-soft: #FBE7E5;
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1520; --surface: #171F2D; --ink: #E7ECF3; --muted: #9AA6B8; --line: #2A3546;
+    --accent: #8FAEF0; --accent-soft: #1E2A44; --mark: #5A4A12; --mark-ink: #FFE7A3;
+    --good: #5CC48F; --good-soft: #15301F; --bad: #F08A80; --bad-soft: #3A1A18;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1520; --surface: #171F2D; --ink: #E7ECF3; --muted: #9AA6B8; --line: #2A3546;
+  --accent: #8FAEF0; --accent-soft: #1E2A44; --mark: #5A4A12; --mark-ink: #FFE7A3;
+  --good: #5CC48F; --good-soft: #15301F; --bad: #F08A80; --bad-soft: #3A1A18;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+}
+.wrap { max-width: 880px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 800; }
+h2 { font-size: 1.15rem; font-weight: 700; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; }
+.eyebrow { font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { color: var(--muted); max-width: 62ch; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* header */
+.head { display: grid; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 6px 14px; font-size: 0.88rem; font-weight: 500;
+}
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+
+/* sections */
+.section { display: grid; gap: 12px; }
+.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.card {
+  text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px; display: grid; gap: 8px; align-content: start; min-width: 0;
+  transition: border-color .15s, transform .15s;
+}
+.card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.card .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); }
+.tag { font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); text-transform: uppercase; }
+.tag.all { background: var(--mark); color: var(--mark-ink); }
+.card p { color: var(--muted); font-size: 0.9rem; }
+.card .foot { display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; margin-top: 4px; }
+.best { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.best.pass { color: var(--good); }
+.best.fail { color: var(--bad); }
+.final { border-style: dashed; }
+
+/* quiz runner */
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.back { background: none; border: none; color: var(--accent); padding: 0; font-weight: 500; }
+.progress { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progress > i { display: block; height: 100%; background: var(--accent); transition: width .25s; }
+.count { font-family: var(--f-mono); font-size: 0.82rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.qcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: clamp(18px, 3vw, 28px); display: grid; gap: 18px; }
+.qtext { font-size: 1.12rem; font-weight: 600; line-height: 1.45; }
+.opts { display: grid; gap: 10px; }
+.opt {
+  display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; text-align: left;
+  border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 12px 14px;
+}
+.opt:hover:not(:disabled) { border-color: var(--accent); }
+.opt:disabled { cursor: default; }
+.opt .k { font-family: var(--f-mono); font-size: 0.8rem; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 5px; border: 1px solid var(--line); background: var(--surface); }
+.opt.right { border-color: var(--good); background: var(--good-soft); }
+.opt.right .k { background: var(--good); color: var(--surface); border-color: var(--good); }
+.opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.opt.wrong .k { background: var(--bad); color: var(--surface); border-color: var(--bad); }
+.opt.dim { opacity: .6; }
+.feedback { border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; }
+.feedback.good { background: var(--good-soft); }
+.feedback.bad { background: var(--bad-soft); }
+.feedback strong { font-family: var(--f-display); }
+.feedback.good strong { color: var(--good); }
+.feedback.bad strong { color: var(--bad); }
+.src { font-family: var(--f-mono); font-size: 0.74rem; color: var(--muted); }
+.actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.btn { border: 1px solid var(--accent); background: var(--accent); color: var(--surface); border-radius: 8px; padding: 10px 18px; font-weight: 600; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.hint { font-size: 0.78rem; color: var(--muted); }
+
+/* results */
+.score { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.big { font-family: var(--f-display); font-size: clamp(2.6rem, 8vw, 3.6rem); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.pill { font-family: var(--f-mono); font-size: 0.78rem; padding: 4px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; }
+.pill.pass { background: var(--good-soft); color: var(--good); }
+.pill.fail { background: var(--bad-soft); color: var(--bad); }
+.review { display: grid; gap: 10px; }
+.miss { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--bad); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; }
+.miss .yours { color: var(--bad); font-size: 0.9rem; }
+.miss .ans { color: var(--good); font-size: 0.9rem; font-weight: 500; }
+.miss .why { color: var(--muted); font-size: 0.9rem; }
+mark { background: var(--mark); color: var(--mark-ink); padding: 0 3px; border-radius: 3px; }
+.note { font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
+/* performance report */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 2px; }
+.tile .v { font-family: var(--f-display); font-size: 1.8rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.tile .l { font-size: 0.8rem; color: var(--muted); }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.t { white-space: normal; min-width: 180px; }
+tr:last-child td { border-bottom: none; }
+.up { color: var(--good); } .down { color: var(--bad); }
+.segs { display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.seg { display: grid; grid-template-columns: minmax(120px, 1.3fr) 2fr 96px; gap: 12px; align-items: center; font-size: 0.9rem; }
+.meter { height: 10px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.meter > i { display: block; height: 100%; border-radius: 999px; }
+.meter > i.pass { background: var(--good); } .meter > i.fail { background: var(--bad); }
+.seg .pct { white-space: nowrap; font-family: var(--f-mono); font-size: 0.82rem; text-align: right; font-variant-numeric: tabular-nums; }
+.namebox { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.9rem; }
+.namebox input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; min-width: 0; flex: 1 1 200px; max-width: 320px; }
+.printonly { display: none; }
+@media (max-width: 560px) { .seg { grid-template-columns: 1fr 96px; } .seg .meter { grid-column: 1 / -1; grid-row: 2; } }
+@media print {
+  body { background: #fff; color: #000; padding: 0; }
+  .noprint, .chips, .back, .actions, .namebox { display: none !important; }
+  .printonly { display: block; }
+  .card, .tile, .tablewrap, .segs, .miss, .qcard { break-inside: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head><body>
+<div class="wrap" id="app"></div>
+
+<script>
+/* Each question: [question, [CORRECT, distractor, distractor, distractor], explanation, source]. Options are shuffled at runtime. */
+const QUIZZES = [
+{
+  id: "dashboard", wf: "all", title: "Dashboard Training",
+  source: "A–Z of Case Management",
+  blurb: "Login, My Cases, SLAs, the 3 + 1 rule, AI Auditor, Human call, stacking, Human Audit and closing.",
+  qs: [
+    ["What is the SLA for a PharmBV case?", ["4 hours","7 hours","6 hours","24 hours"], "PharmBV must close within 4h. MedBV and Transportation get 7h, PriorAuth gets 6h. A breach brings a client penalty.", "A–Z · Slide 7"],
+    ["Which workflows share the 7-hour SLA?", ["MedBV and Transportation","PharmBV and PriorAuth","MedBV and PriorAuth","All four workflows"], "MedBV / Transportation = 7h, PriorAuth = 6h, PharmBV = 4h.", "A–Z · Slide 7"],
+    ["What does the 3 + 1 rule mean?", ["A maximum of 3 AI attempts plus 1 Human attempt per case","3 Human attempts plus 1 AI attempt per case","3 pushbacks plus 1 escalation per call","3 stacked cases plus the original case on one call"], "The 3 + 1 pattern is the 100ms standard: up to 3 AI calls, then 1 Human call.", "A–Z · Slide 8"],
+    ["You believe a case needs a second Human call. What must you do first?", ["Confirm with your Supervisor before making the attempt","Make the call, then add a note afterwards","Ask the AI Auditor to re-run the case","Reassign the case to another agent"], "Some cases do need a second Human call, but only after the Supervisor confirms.", "A–Z · Slide 8"],
+    ["You are stepping away for a break. What should you do on the dashboard?", ["Switch your status to Not Available","Log out and log back in after the break","Keep your status Available so the queue keeps moving","Close the browser tab"], "Click your initials at the bottom left. If you stay Available, cases keep getting assigned to you.", "A–Z · Slide 4"],
+    ["Why log out at the end of your day instead of staying logged in?", ["The dashboard auto-logs out after 24 hours and can throw you out mid-call, causing rework","Cases can't be assigned while you are logged in","The SLA timer only pauses when you log out","Staying logged in marks you Not Available"], "Auto-logout happens after 24 hours. If it hits during a call, you lose work.", "A–Z · Slide 4"],
+    ["When you open a case summary, what do you check first in the Output section?", ["The Case Disposition","The Timeline","The provider details in Input","The Call 3 tab"], "Disposition tells you what happened, e.g. Benefits Partially Verified, Need Live Agent or Third Party Pushback.", "A–Z · Slide 10"],
+    ["What does the yellow Chain of Thoughts button under a question show?", ["A short summary of what happened on the call for that question, answered or not","The exact moment on the recording where the answer was given","The list of fields still missing on the case","The AI Auditor's escalation reasons"], "Yellow = Chain of Thoughts (short summary). Blue = Evidence (jumps to the exact moment on the call).", "A–Z · Slide 11"],
+    ["Which tab shows the information still to be collected on a case?", ["Missed","Timeline","Review","Evidence"], "Click Missed to see which information still needs to be collected.", "A–Z · Slide 10"],
+    ["After all AI attempts finish, who decides between Mark as Complete and Escalate to Human?", ["The AI Auditor","Your Supervisor","The payer rep","The client program"], "The built-in AI Auditor runs once all AI attempts are done. Click AI Audit to see escalation reasons.", "A–Z · Slide 15"],
+    ["PBM workflow: a field is missing because the AI never asked the question. What happens?", ["A Human call is mandatory for that information","Look it up in the LMS portal and close without a call","Mark the case complete with a note","Wait for the AI to make a 4th attempt"], "If the AI missed the question, a Human call is mandatory for it.", "A–Z · Slide 16"],
+    ["PBM workflow: the AI asked, but the rep cited “third party restrictions”. How do you decide on a Human call?", ["Check that field in the LMS portal under PBM Field Reference: Accepted = no Human call, Not Accepted = Human call is mandatory","Always make a Human call","Never make a Human call when the rep refused","Email the client program and wait"], "Reasons like “information unavailable” are checked against the PBM Field Reference in the LMS portal.", "A–Z · Slide 16"],
+    ["Where do you find how to get through a specific payer's IVR?", ["The LMS portal, under Payer IVR Navigation","The case Timeline","The Handoff actions panel","The Human Call Script"], "Every payer's IVR is different. Look the payer up in the LMS portal under Payer IVR Navigation.", "A–Z · Slide 19"],
+    ["On a Human call, you collect benefit information before verifying the member's details. What is this?", ["A HIPAA compliance failure","Acceptable if the rep offers it","Fine as long as you verify before hanging up","A call-stacking error"], "Collecting any information before verifying member details counts as a HIPAA compliance failure.", "A–Z · Slide 20"],
+    ["The rep gives a long bundle of information faster than you can type. Which feature helps?", ["Heard: it leaves a yellow ear marker you click after the call to jump to that moment","Search transcription","Stack call","Regenerate summary"], "Click Heard; after the call, click the ear icon to jump to that moment in the recording.", "A–Z · Slide 22"],
+    ["Before you start a stacked case on the same call, what must you do?", ["Ask the rep to confirm they can provide information for multiple member accounts","Hang up and redial the payer","Mark the original case complete","Get written Supervisor approval"], "Ask the rep first. Clicking Yes on Start creates a Human call record that cannot be undone.", "A–Z · Slides 23–24"],
+    ["You stack a case from a different program with the same payer. What must you do?", ["Give the full opening statement again for the new program","Nothing; the first opening covers the whole call","Only re-state the member's DOB","Only ask the rep for a new reference number"], "Across programs you give the full opening again. Within the same org, re-state the program name and the recorded line.", "A–Z · Slide 24"],
+    ["After the Human call (disposition saved, Proceed clicked), what is the right order?", ["Mark Human Call as Completed → confirm disposition → wait for the summary → Start Human Audit","Start Human Audit → Mark Human Call as Completed → Proceed","Mark as Complete → type complete → Start Human Audit","Proceed → Mark as Complete → regenerate the summary"], "The case moves back to Human Audit Needed. Once the summary is generated, choose Start Human Audit.", "A–Z · Slide 26"],
+    ["A suggested value differs from what you entered. What do you do?", ["Verify it with the Evidence button or the search tab before accepting","Accept it, since you can undo with one click","Ignore it; your entry always wins","Delete both values and leave the field blank"], "There's no one-click undo, and double-checking a differing suggested value is mandatory.", "A–Z · Slides 29–30"],
+    ["Information is still missing after your Human attempt. Where do you record the reason?", ["In Notes under Payer Call Details, alongside relevant system notes","In the Chain of Thoughts box","In the Timeline","Nowhere; leave the field blank"], "Keep relevant system-generated notes and add yours alongside them.", "A–Z · Slide 30"],
+  ]
+},
+{
+  id: "mm-foundations", wf: "medbv", title: "Healthcare Foundations",
+  source: "Deck 1 · Modules 1–4",
+  blurb: "Revenue cycle, insurance types, Medicare parts, plan types, medical vs pharmacy benefit, and codes.",
+  qs: [
+    ["In the 9-step revenue cycle, which step is benefits verification?", ["Step 2: Verify eligibility and benefits","Step 1: Schedule","Step 3: Authorization","Step 6: Adjudicate"], "Step 2 is us. If step 2 is wrong, every step after it can go wrong.", "Deck 1 · Slide 9"],
+    ["The rep confirms the plan is active. What can you conclude about the drug?", ["Nothing yet; an active plan does not mean the drug is covered","The drug is covered","The drug is covered but needs PA","The drug is covered under pharmacy only"], "The biggest beginner mistake. A plan can be active while the drug is excluded, needs PA, or is pharmacy-only.", "Deck 1 · Slide 12"],
+    ["Robert holds the plan; his son Leo is the patient. What is Leo's relationship to the subscriber?", ["Child","Self","Subscriber","Spouse"], "The subscriber is still Robert. We confirm Leo's relationship: child.", "Deck 1 · Slide 17"],
+    ["Which Medicare part covers drugs given by a provider, such as infusions?", ["Part B","Part A","Part D","Part C"], "Part B = medical insurance, including provider-given drugs. It is our focus in MM.", "Deck 1 · Slide 21"],
+    ["Which is true of Original Medicare?", ["Medicare pays 80% after the deductible, and there is no out-of-pocket max","It has its own network, PA and OOP rules","It is run by private insurers approved by Medicare","It can be combined with Medicare Advantage"], "Original Medicare: 80/20 after the deductible, no OOP max, no PA or referral for Part B drugs.", "Deck 1 · Slide 22"],
+    ["Can a patient have Medicare Advantage and Medigap together?", ["No; Medigap works only with Original Medicare","Yes; Medigap pays first","Yes; Medicare Advantage becomes secondary","Only for Part D drugs"], "Medigap works only with Original Medicare and is always secondary.", "Deck 1 · Slide 23"],
+    ["Which payer usually pays last when the patient has other insurance?", ["Medicaid","A commercial employer plan","Medicare Advantage","An individual Marketplace plan"], "Medicaid is run by each state and usually pays last.", "Deck 1 · Slide 24"],
+    ["Which plan type needs a PCP, usually needs a referral, and covers out-of-network only for emergencies?", ["HMO","PPO","POS","EPO"], "EPO is also in-network only but usually needs no PCP or referral. The plan type is a hint, never a rule.", "Deck 1 · Slide 26"],
+    ["Which codes appear on a medical (MM) drug claim?", ["A drug code (J/Q-code) plus an admin code (CPT)","The NDC only","The ICD-10 code only","BIN and PCN"], "Medical claims use the drug code + admin code. Pharmacy claims use the NDC.", "Deck 1 · Slide 29"],
+    ["In which route does the provider carry the highest financial risk?", ["Buy and bill","Specialty pharmacy under the medical benefit","Pharmacy benefit through the PBM","All routes carry the same risk"], "In buy and bill the clinic pays for the drug first and loses money if the claim is denied.", "Deck 1 · Slide 34"],
+    ["The rep says the drug is “covered under pharmacy”. How is that recorded for MM?", ["Not covered under MM (a pharmacy carve-out)","Covered","Covered with PA","Pending review"], "“Covered under pharmacy” is NOT covered under MM. Module 16 covers what to collect.", "Deck 1 · Slide 35"],
+    ["What does the CPT admin code tell the payer?", ["How the drug was given","Why the patient needs it","Where it was given","Which exact product and package was used"], "ICD-10 = why, J/Q = what, CPT = how, POS = where, NDC = which exact product.", "Deck 1 · Slide 38"],
+    ["Why must you always ask about coverage with the diagnosis code?", ["A drug can be covered for one diagnosis and not another","The payer can't find the patient without it","It sets the number of units","It identifies the place of service"], "Coverage can depend on the diagnosis.", "Deck 1 · Slide 40"],
+    ["What are Q-codes?", ["Temporary HCPCS codes, often for new drugs and biosimilars","Permanent codes for provider-given drugs","Diagnosis codes","Place of service codes"], "J-codes are permanent. Q-codes are temporary until a permanent code is assigned.", "Deck 1 · Slide 41"],
+    ["The rep gives one answer for the drug and admin codes together. What do you do?", ["Ask for each code on its own","Record the same answer for both codes","Skip the admin code","Give a hard pushback"], "The payer may cover one and not the other, and cost share can differ. Drug covered ≠ admin covered.", "Deck 1 · Slide 43"],
+    ["An NDC is split 5–4–2. What do the three parts identify?", ["Labeler, product, package","Payer, plan, group","Drug, dose, units","Diagnosis, drug, site"], "Labeler = company, product = drug/strength/form, package = size or type.", "Deck 1 · Slide 44"],
+    ["J1745 is 10 mg per unit. The dose ordered is 500 mg. How many units?", ["50","500","5","40"], "Units = dose ordered ÷ dose per unit = 500 ÷ 10 = 50.", "Deck 1 · Slide 45"],
+    ["Which POS code is an on-campus outpatient hospital?", ["22","19","11","12"], "POS 11 office, 12 home, 19 off-campus outpatient hospital, 22 on-campus outpatient hospital.", "Deck 1 · Slide 46"],
+    ["Does the monthly premium count toward the deductible or out-of-pocket max?", ["No","Yes, toward both","Only toward the deductible","Only toward the OOP max"], "Premiums keep the plan active. They don't count toward the deductible or OOP max.", "Deck 1 · Slide 18"],
+    ["What is the MCQ pass mark during training?", ["85%","70%","75%","90%"], "Daily MCQs cover the current day and all previous days. Pass mark is 85%.", "Deck 1 · Slide 2"],
+  ]
+},
+{
+  id: "mm-compliance", wf: "medbv", title: "Call Right: HIPAA and Compliance",
+  source: "Deck 2 · Modules 5–8",
+  blurb: "3-of-4 rule, mandatory opening, representation, call limits, pushbacks, escalations and program rules.",
+  qs: [
+    ["Which four identifiers make up the 3-of-4 HIPAA rule?", ["Patient name, date of birth, address, member ID","Name, DOB, diagnosis, drug","Member ID, group number, BIN, PCN","Name, phone, email, address"], "Any three of the four must match before sharing treatment details.", "Deck 2 · Slide 5"],
+    ["The rep asks for the member's name, DOB and address. What do you give?", ["Exactly those three","Name, DOB and member ID","All four identifiers plus the drug","The member ID only"], "Give exactly what is asked. Don't swap identifiers.", "Deck 2 · Slides 5, 13"],
+    ["When can you mention the drug, codes or diagnosis?", ["Only after the rep confirms the member's identity","During the opening statement","Right after giving the program name","Any time; the line is recorded"], "No clinical, financial or treatment info before verification is complete.", "Deck 2 · Slide 5"],
+    ["Which is NOT one of the four mandatory opening elements?", ["The provider's NPI","Agent name","Program name","Recorded line"], "The four are: agent name, program name, recorded line, and purpose of the call.", "Deck 2 · Slide 8"],
+    ["The rep asks: “Are you calling from the doctor's office?” What is the right answer?", ["“I'm calling on behalf of the [program], and we are working with the provider's office.”","“Yes, I'm calling from the provider's office.”","“I'm calling from the specialty pharmacy.”","“I'm calling on behalf of the patient.”"], "Never say you are the provider's office, a pharmacy or the patient. That is misrepresentation.", "Deck 2 · Slide 10"],
+    ["What is the maximum number of calls per case?", ["4: three AI calls and one human call","3: all human","5: three AI and two human","Unlimited until benefits are complete"], "Exceptions exist only for accuracy or a dropped human call, always with a case note.", "Deck 2 · Slide 11"],
+    ["Your human call dropped halfway through the PA section. What can you do?", ["Make ONE follow-up call only for the missing information, with a case note","Restart the whole call flow on a new call","Mark the case complete","Wait for the AI to call back"], "If partial info was collected and the call disconnected, one follow-up call is allowed for the missing info only.", "Deck 2 · Slide 11"],
+    ["The rep refuses or gives an incomplete answer. What is the normal rule?", ["One polite professional pushback","Keep pushing until they answer","No pushback at all","Ask for the rep's supervisor right away"], "“I understand. Could you please check once more? The provider needs this to plan the treatment.”", "Deck 2 · Slide 12"],
+    ["When is a hard pushback used?", ["When the cost share given doesn't fit a normal benefit structure","Whenever the rep refuses anything","When the rep is rude","When the IVR fails"], "Example: a deductible with no out-of-pocket max.", "Deck 2 · Slide 12"],
+    ["You needed a second pushback to collect correct benefits and wrote the reason in the case note. Is this an escalation?", ["No","Yes, always","Only if the rep complains","Only on Medicare cases"], "Accuracy first. An extra call or second pushback with a noted reason is NOT an escalation.", "Deck 2 · Slide 16"],
+    ["What must you collect before ending every call?", ["Rep name and call reference number","Rep phone number and email","Supervisor name and fax","PA number and provider NPI"], "Ending a call without the rep name or reference number is an escalation item.", "Deck 2 · Slide 15"],
+    ["What happens after more than one incident in the same month?", ["A performance improvement plan (PIP)","Nothing; incidents reset weekly","Automatic termination","A HIPAA fine to the agent"], "Incident → escalation (maybe a quality action plan) → more than one in a month → PIP.", "Deck 2 · Slide 17"],
+    ["Which incident is the most serious?", ["Sharing patient details before HIPAA verification","Asking the same question twice","A call that runs 2 minutes long","Saying “thanks” instead of “thank you”"], "It's a HIPAA violation and high-risk.", "Deck 2 · Slide 16"],
+    ["The rep asks for the patient's address and you don't have it. What do you say?", ["Tell the rep clearly that you don't have that information","Give the provider's address instead","Give the member ID instead","Give a plausible address"], "If you don't have it, say so. Never guess or make up an answer.", "Deck 2 · Slide 13"],
+    ["Which of these is PHI?", ["A member ID together with the drug being verified","A payer's general customer service number","A program name on its own","A blank call script"], "PHI identifies a patient AND relates to their health, care or payment.", "Deck 2 · Slide 4"],
+    ["Which is allowed at your desk?", ["Locking your screen when you leave","Writing a member ID on a sticky note","Pasting case details into a public AI tool to summarize","Taking a screenshot of a case to share"], "PHI stays in the dashboard and approved tools only.", "Deck 2 · Slide 6"],
+    ["You attached patient info to the wrong case. What do you do?", ["Report it to your lead right away","Fix it quietly and move on","Wait to see whether QA notices","Delete the case"], "Not reporting a mistake is itself an escalation item. Hiding it makes it worse.", "Deck 2 · Slides 6, 16"],
+    ["Where do you find the rules for a case's program (opening, collection rule, office visit method, extra questions)?", ["On the case in the dashboard; read it before calling","From memory","From the payer rep","From the AI Auditor"], "Read first, call second. If unclear, ask your team lead before the call.", "Deck 2 · Slides 19–20"],
+    ["Which program checks accumulators / maximizers / AFP for both Commercial and Medicare Advantage?", ["Sandoz","IpsenCares","J&J Innovative Medicine","Every program"], "Most programs check Commercial only. Sandoz adds Medicare Advantage.", "Deck 2 · Slide 19"],
+    ["What extra question is added on Spravato cases?", ["Is this REMS certified?","Is it dispensed through Orsini or Option Care?","Is there an office visit copay?","Is this an employer-based plan?"], "Spravato asks REMS. Vyepti asks about Orsini or Option Care.", "Deck 2 · Slide 19"],
+  ]
+},
+{
+  id: "mm-eligibility", wf: "medbv", title: "Eligibility and Cost Share",
+  source: "Deck 3 · Modules 9–14",
+  blurb: "Plan dates, COB, network and referrals, cost share terms and math, accumulators, validation logic.",
+  qs: [
+    ["A plan year runs April to March. When does the deductible reset?", ["April","January","March","July"], "Deductible and OOP reset when the plan year starts again.", "Deck 3 · Slide 4"],
+    ["Rep: “Active. Effective 01/01/2026, termination 09/30/2026.” Date of service is 11/18/2026. What do you do?", ["Read back the dates and confirm them; don't record active until the dates make sense","Record active; the rep said so","Record active and add a note","Skip eligibility and move to benefits"], "Never record “active” until the dates make sense for the treatment date. Ask if a new plan or renewal is on file.", "Deck 3 · Slide 7; Deck 5 · Slide 31"],
+    ["The rep says our plan is secondary. What must you collect?", ["The primary payer's name","Nothing; end the call","Only the secondary plan's group number","A copy of the primary member ID card"], "If our payer is not primary, always get the primary payer's name.", "Deck 3 · Slide 6"],
+    ["The provider is in-network. Which benefits do you collect?", ["In-network benefits only","Out-of-network benefits only","Both in- and out-of-network","None"], "The exact collection rule is shown on the case for each program.", "Deck 3 · Slide 10"],
+    ["The provider is out-of-network and the patient has NO OON benefits. What do you collect?", ["No benefits to collect","In-network benefits","Out-of-network benefits","Both sets"], "OON provider + OON benefits = collect OON only. OON provider + no OON benefits = nothing to collect.", "Deck 3 · Slide 10"],
+    ["A referral is on file. What must match before you treat it as valid?", ["Our provider, diagnosis, CPT code and dates","Only the patient's name","Only the referral number","The PCP's phone number"], "A referral to a different provider does not cover our case.", "Deck 3 · Slide 11"],
+    ["A PCP referral is required but not on file. What do you collect?", ["PCP name, PCP phone, and how to submit a referral","Referral number and visits used","Nothing more","The PA department's phone"], "On file → number, dates, approved and used visits. Not on file → PCP name, phone, and submission method.", "Deck 3 · Slide 11"],
+    ["Deductible $1,000, OOP max $4,000, deductible NOT included in OOP. Most the patient can pay in the year?", ["$5,000","$4,000","$3,000","$1,000"], "Not included → deductible plus the full OOP max on top. That's why you always ask.", "Deck 3 · Slide 20"],
+    ["Deductible $500 (met $0), 10% coinsurance, OOP max $2,000 (ded included). Allowed amount $3,000. Patient pays?", ["$750","$800","$500","$300"], "$500 deductible + 10% of the remaining $2,500 ($250) = $750, under the OOP max.", "Deck 3 · Slide 30"],
+    ["Deductible $2,000 with $1,500 met, 20% coinsurance, allowed amount $3,000. Patient pays?", ["$1,000","$1,100","$600","$500"], "$500 left on the deductible + 20% of $2,500 ($500) = $1,000.", "Deck 3 · Slide 29"],
+    ["No deductible, 20% coinsurance, coinsurance max $1,500, allowed $5,000 per dose. What does dose 2 cost?", ["$500","$1,000","$0","$1,500"], "Dose 1 = $1,000. Dose 2 would be $1,000 but only $500 is left before the max. Dose 3 = $0.", "Deck 3 · Slides 18, 29"],
+    ["Deductible $1,000, 20%, OOP max $4,000 (included), $5,000 per dose. $3,800 paid after 3 doses. Dose 4 costs?", ["$200","$1,000","$0","$800"], "Only $200 is left before the OOP max. From dose 5 the plan pays 100%.", "Deck 3 · Slide 28"],
+    ["Copay $100 per dose, deductible doesn't apply, OOP max $1,000. When does the patient start paying $0?", ["From dose 11","From dose 10","From dose 2","Never"], "$100 × 10 doses = $1,000 OOP met at dose 10. Dose 11 onwards is $0.", "Deck 3 · Slide 29"],
+    ["Under a copay accumulator, what happens to manufacturer copay help?", ["It still pays, but it does NOT count toward the deductible or OOP","It counts double toward the OOP","It is spread evenly across the plan year","It is refunded to the drug company"], "When the help runs out, the patient may still owe a lot. Spreading help across the year is a maximizer.", "Deck 3 · Slide 23"],
+    ["For which plans do we NOT check copay accumulators / maximizers?", ["Original Medicare, Medicaid and federal plans","Commercial employer plans","Commercial individual plans","Every plan is checked"], "Commercial for most programs. Some also include Medicare Advantage; the case shows the scope.", "Deck 3 · Slide 25"],
+    ["Rep: deductible $3,000, OOP max $2,500, 20% coinsurance. What do you do?", ["Hard pushback: the deductible can't be more than the OOP max","Record it as given","Ask about the office visit copay","Ask for the group number"], "Rule 1: deductible ≤ OOP max.", "Deck 3 · Slides 32–33"],
+    ["Rep: individual deductible $2,000, family deductible $1,500. What do you do?", ["Confirm both amounts; individual can't be more than family","Record both as given","Give a hard pushback on the OOP","Ignore the family amount"], "Rule 2: individual ≤ family.", "Deck 3 · Slide 33"],
+    ["Rep: no deductible, 30% coinsurance, no OOP max, no coinsurance max. What is wrong?", ["Coinsurance has no ceiling; ask for a coinsurance max, hard pushback if none","Nothing; it's valid","The deductible must be at least $1","The copay is missing"], "Rule 5: coinsurance needs a ceiling (OOP max or coinsurance max).", "Deck 3 · Slides 32, 34"],
+    ["Rep: deductible $0, OOP max $0, and 20% coinsurance on the drug. What do you do?", ["Hard pushback; with $0 / $0 the patient should pay nothing","Record it as given","Change it to 0% yourself","Skip the cost share section"], "$0 / $0 only makes sense if the patient pays $0.", "Deck 3 · Slide 33"],
+    ["Embedded deductible: Robert meets his $1,000 individual deductible; the $3,000 family total isn't met. What happens for Robert?", ["His coinsurance starts","He keeps paying deductible until the family total is met","His OOP max resets","Nothing changes until year end"], "Each person has an individual deductible inside the family one.", "Deck 3 · Slide 19"],
+  ]
+},
+{
+  id: "mm-approvals", wf: "medbv", title: "Approvals, Drug Access and Office Visits",
+  source: "Deck 4 · Modules 15–17",
+  blurb: "PA status tree and watch-outs, pre-d, step therapy, buy and bill, SP / AOB, PBM carve-outs, REMS, site of care, office visit.",
+  qs: [
+    ["What is the difference between “PA required” and “PA on file”?", ["Required is the plan's rule; on file is whether a request exists and its status","They mean the same thing","On file means the PA is approved","Required means it has already been submitted"], "Never mix up the rule and the fact.", "Deck 4 · Slide 3"],
+    ["PA is required and a request is pending. What do you collect?", ["PA dept name and phone, reference number, submitted-on date, submission method and TAT","Denial date, reason and how to resubmit","Ref ID, effective and end dates, approved units","Nothing; wait for the decision"], "Pending also: check if any other active auth is on file.", "Deck 4 · Slide 5"],
+    ["PA is required and NOT on file. What do you collect?", ["PA dept name and phone, submission methods (phone / fax / portal) and standard and urgent TAT","Approved units and dates","The denial date","The appeals department"], "This branch is about how the provider can submit.", "Deck 4 · Slide 5"],
+    ["Rep: “PA isn't required for J1745. Oh, I see an approved auth on file.” What do you record?", ["PA required, on file, approved; collect the auth details","PA not required","PA not required; ignore the auth","Pre-determination required"], "Active auth on file → treat PA as REQUIRED. Check provider, J-code, CPT, DX; don't collect submission methods.", "Deck 4 · Slide 6; Deck 5 · Slide 37"],
+    ["The rep offers to transfer you to the PA department. What do you do?", ["Decline and take the PA department name and phone number","Take the transfer","Hang up and call the PA line yourself","End the call"], "A transfer can drop the call and lose everything collected.", "Deck 4 · Slide 6; Deck 5 · Slide 39"],
+    ["Aetna's benefits department won't give PA information. How do you record PA?", ["Required for the drug, not required for the procedure","Not required for either","Required for both","Unknown for both"], "An internal pushback-list rule.", "Deck 4 · Slide 6"],
+    ["A valid auth is on file. Do you collect submission methods?", ["No","Yes, always","Only the fax number","Only if the rep offers"], "Valid auth on file → don't collect submission methods.", "Deck 4 · Slide 6"],
+    ["Auth on file: J1745 (10 mg/unit), 40 units per dose. New order is 800 mg. Is the auth enough?", ["No: 80 units are needed and only 40 are approved; document it","Yes; units don't affect the auth","Yes; 800 mg fits within 40 units","Only if given at POS 22"], "800 ÷ 10 = 80 units. Document it so the auth is updated before treatment.", "Deck 4 · Slide 7"],
+    ["When do you check pre-determination?", ["Only when PA is NOT required, and for the drug code only","Always, for both drug and procedure","Only when PA is approved","Only for Medicare plans"], "Pre-d is never a guarantee of payment.", "Deck 4 · Slide 8"],
+    ["The rep says pre-determination is optional or recommended. How do you record it?", ["Not required","Required","Pending","Recommended, with submission details"], "Optional = not required.", "Deck 4 · Slide 8"],
+    ["The rep says step therapy is optional. How do you record it?", ["Not required","Required","Pending","Required, with the drug list"], "Optional step therapy = not required. And don't take a transfer for it.", "Deck 4 · Slide 9"],
+    ["The rep says a PA must be submitted instead of an appeal. What do you collect?", ["The PA information","The appeals department and phone","Nothing","The exception process"], "Internal rule: collect the PA information.", "Deck 4 · Slide 10"],
+    ["For Original Medicare and Medigap, which drug acquisition route applies?", ["Buy and bill only","Specialty pharmacy only","Either one; ask the rep","Pharmacy benefit"], "A specialty pharmacy is not allowed under the medical benefit for these.", "Deck 4 · Slide 13"],
+    ["The plan's specialty pharmacy status is “Mandated”. What does it mean?", ["The patient must use this SP; no other option","Any in-network SP can be used","The plan prefers it but allows others","No SP is allowed"], "Preferred = first choice, others may be allowed. Open = any in-network SP. Mandated = must use.", "Deck 4 · Slide 14"],
+    ["Rep: “That drug isn't covered under medical, it's covered under pharmacy.” What do you record?", ["NOT covered under MM; collect the reason, PBM name / phone / fax, and ask separately about the admin code","Covered","Covered with PA","Covered under MM through an SP"], "Never record a carve-out as “covered”.", "Deck 4 · Slide 15"],
+    ["What does REMS tell you about coverage?", ["Nothing; REMS is an FDA safety program, not coverage or approval","The drug is covered","PA is approved","The drug is under the pharmacy benefit"], "Some programs add a REMS question (e.g. Spravato). The case shows when.", "Deck 4 · Slide 16"],
+    ["No site of care is selected on the PEF. Which sites do you confirm?", ["All sites","Only the doctor's office","Only home infusion","None"], "PEF site selected → confirm that site. None selected → confirm all.", "Deck 4 · Slide 17"],
+    ["Rep: “The member has a $40 copay for J1745.” What do you ask?", ["Does the $40 apply to the drug when no office visit is billed?","Nothing; record $40","Has the deductible been met?","Which pharmacy dispenses it?"], "It may be the office visit copay, not the drug copay.", "Deck 4 · Slide 20; Deck 5 · Slide 43"],
+    ["Sandoz uses the alternate office visit method. What is it?", ["Ask cost share without mentioning the office visit, then confirm whether it's the same when no office visit is billed","Never ask about the office visit","Ask only the office visit copay","Ask with the office visit billed only"], "If it's not the same, collect the office visit benefit separately.", "Deck 4 · Slide 22"],
+    ["Which detail do you collect on every MM call, whatever the coverage answer?", ["PBM name, phone and fax","REMS status","Pre-determination fax","Appeal deadline"], "Always collect the PBM.", "Deck 4 · Slide 15"],
+  ]
+},
+{
+  id: "mm-callflow", wf: "medbv", title: "The MM Call: Flow and Scenarios",
+  source: "Deck 5 · Modules 18–23",
+  blurb: "The 11-section call flow, special payer types, pushback watch-outs, documentation and 12 scenarios.",
+  qs: [
+    ["Which section comes right after HIPAA verification?", ["Eligibility","Drug and admin benefits","Office visit","PA / pre-d"], "Opening → HIPAA → Eligibility → Drug & admin → Office visit → PA / pre-d → Step therapy → Accumulator / AFP → Acquisition & PBM → Site of care → Closing.", "Deck 5 · Slide 5"],
+    ["Which section comes right after Drug and admin benefits?", ["Office visit","PA / pre-d","Eligibility","Site of care"], "Office visit is collected after drug and admin benefits.", "Deck 5 · Slide 5"],
+    ["Which is the last data section before Closing?", ["Site of care","Drug acquisition and PBM","Accumulator / AFP","Step therapy"], "Site of care is section 10; Closing is 11.", "Deck 5 · Slide 5"],
+    ["Which eligibility question is NOT asked anymore?", ["Is this an employer-based plan?","Is the provider in-network?","Is the patient the subscriber?","Calendar, plan or fiscal year?"], "In MM calls every other field in the call flow is required (R).", "Deck 5 · Slide 9"],
+    ["How do you phrase the drug coverage question?", ["J-code with the DX code, rendered outpatient in the specialist office with no office visit billed; then repeat for the CPT","Ask about the J-code and CPT together as one","Ask about the office visit first","Ask with an office visit billed"], "Drug code first, then admin code, separately.", "Deck 5 · Slide 10"],
+    ["Original Medicare: the IVR can't give the Part B effective date. What next?", ["Call the backdoor number and get it from a rep","Look it up on the Medicare website","Leave it blank","Use the start date from the case input"], "Calls only. We never fetch Medicare information from any website.", "Deck 5 · Slides 15, 51"],
+    ["Original Medicare template (2026): which deductible and patient responsibility do you record?", ["$283 deductible, 20%","$615 deductible, 25%","$0 deductible, 20%","$283 deductible, $40 copay"], "No copay for Medicare. No PA or referral. Buy and bill only. The deductible changes yearly.", "Deck 5 · Slide 16"],
+    ["How are deductible, OOP, coinsurance and copay recorded for a Medigap plan?", ["As 0","As Medicare's amounts","As the plan letter","Left blank"], "Also collect plan letter, effective date, what it covers, and whether it follows Medicare guidelines.", "Deck 5 · Slide 17"],
+    ["Which payer type gets NO copay accumulator / maximizer check?", ["Medicaid","Commercial PPO","Commercial HMO","Commercial EPO"], "Medicaid uses the full call flow but no accumulator check.", "Deck 5 · Slides 18–19"],
+    ["Patient is 67. The rep says this commercial plan is secondary. What do you do?", ["Record COB secondary, ask for the primary payer's name, continue the call flow","Assume Medicare is primary and move on","End the call","Switch to the Original Medicare template"], "Trap: not asking — or assuming it's Medicare.", "Deck 5 · Slide 33"],
+    ["Our provider is Dr. Smith. The referral on file is to Dr. Patel. What do you record?", ["Referral required, not on file for our provider; collect PCP name, phone and how to submit","Referral on file and valid","Referral not required","PA required"], "A referral must match our provider, diagnosis, CPT and dates.", "Deck 5 · Slide 35"],
+    ["Rep: “DED and OOP are met, so J1745 is covered at 100%.” What else do you collect?", ["The cost share for when DED and OOP are NOT met","Nothing; 100% is complete","Only the office visit copay","Only the PBM fax"], "After the plan year resets the patient will pay, and nobody will know how much.", "Deck 5 · Slide 45"],
+    ["Rep: “$1,500 individual deductible, no OOP max, 20% after deductible.” What do you say?", ["“With a $1,500 deductible the plan should also have an OOP max. Could you check again?”","Nothing; record it as given","“Is this drug REMS certified?”","“What is the group number?”"], "A deductible above $0 needs an OOP max, and coinsurance needs a ceiling. Note the reason for any second pushback.", "Deck 5 · Slide 53"],
+    ["Rep says coinsurance 30%, OOP doesn't apply, no coinsurance max. Which debrief label fits?", ["Stop & push back","Confirmed","Gap to close","Move on"], "Stop & push back = the answer breaks a rule. Gap to close = partial answer. Confirmed = complete.", "Deck 5 · Slides 29, 47"],
+    ["A bad note says “PA pending”, but nothing was ever submitted. What should it say?", ["PA required, not on file, with submission methods and TAT","PA approved","PA not required","PA denied"], "“Pending” means a request exists and is under review.", "Deck 5 · Slide 26"],
+    ["The rep can't answer one of your questions. What do you document?", ["“Rep could not provide”","Your best guess","Nothing; leave it blank","The answer from a similar case"], "Unknown is OK. Never guess.", "Deck 5 · Slide 25"],
+    ["The rep mentions a coinsurance maximum. What do you ask?", ["Which service it applies to (drug or procedure) and how it works","Nothing more","Whether the plan is an HMO","The PBM fax number"], "Pushback-list rule for coinsurance max.", "Deck 5 · Slide 22"],
+    ["Which call flow does Medicare Advantage use?", ["The full call flow, every section","The Original Medicare template","The Medigap short field set","IVR only"], "Medicare Advantage behaves like commercial: PA and referral may be required.", "Deck 5 · Slide 18"],
+    ["What new agents break most often among the golden rules?", ["Writing what they think the rep meant instead of what the rep said","Verifying 3 of 4 identifiers","Following the section order","Asking for the reference number"], "Write the rep's words, never what you assume.", "Deck 5 · Slide 6"],
+    ["Rep: covered at 100% (DED and OOP not mentioned). What must you ask?", ["Does the deductible apply?","Is the plan an HMO?","Is the drug REMS certified?","What is the PBM's website?"], "Covered at 100% → ask if the deductible applies.", "Deck 5 · Slide 22"],
+  ]
+},
+{
+  id: "pbm-foundations", wf: "pharmbv", title: "Pharmacy Benefits Foundations",
+  source: "Pharmacy BV Training · Ch. 1–4",
+  blurb: "HIPAA rules and penalties, pharmacy cost sharing, Medicare Part D and TrOOP, Extra Help, PBMs.",
+  qs: [
+    ["How does 100ms collect pharmacy benefit information?", ["Direct calls to a live PBM rep","PBM web portals","Clearinghouse eligibility checks","IVR automated menus"], "We do not use portals, clearinghouses or IVR data. Case details are a starting point, not a verification source.", "PBM · Slide 63"],
+    ["Who prosecutes HIPAA criminal cases?", ["The Department of Justice","HHS Office for Civil Rights","State medical boards","The PBM"], "Civil fines are enforced by HHS OCR. Criminal cases go to DOJ.", "PBM · Slide 24"],
+    ["Obtaining or disclosing PHI under false pretenses carries up to:", ["$100,000 and 5 years in prison","$50,000 and 1 year","$250,000 and 10 years","$10,000 and no prison"], "$50k/1yr for knowingly; $100k/5yrs under false pretenses; $250k/10yrs for sale or malicious harm.", "PBM · Slide 24"],
+    ["Which HIPAA rule requires notifying affected people and HHS after a breach?", ["Breach Notification Rule","Privacy Rule","Security Rule","Enforcement Rule"], "HITECH (2009) added breach notification and tougher enforcement.", "PBM · Slides 19–20"],
+    ["You suspect a breach. What is your first move?", ["Stop, don't hide it, and tell your supervisor or privacy contact right away","Fix it quietly","Wait a day to see if anyone notices","Email the patient directly"], "Then write down the facts and follow the incident process.", "PBM · Slide 26"],
+    ["Plan: $500 deductible ($200 met), 20% coinsurance. Drug X allowed amount $800. What does Maya pay?", ["$400","$300","$460","$160"], "$300 deductible left + 20% of the remaining $500 ($100) = $400. The plan pays $400.", "PBM · Slide 52"],
+    ["$500 deductible, 20%, $1,500 OOP max. Year total so far $800. Fill 4 allowed $4,000. Patient pays?", ["$700","$800","$4,000","$0"], "20% would be $800, but only $700 is left under the OOP max.", "PBM · Slide 39"],
+    ["Which does NOT count toward the out-of-pocket max?", ["Monthly premiums","The deductible","Copays","Coinsurance"], "Premiums and non-covered drugs don't count.", "PBM · Slide 37"],
+    ["Medicare Part D 2026: what is the most a plan can charge as a deductible?", ["$615","$283","$2,100","$500"], "$283 is the 2026 Part B deductible, not Part D.", "PBM · Slide 48"],
+    ["Part D 2026: what TrOOP amount moves the patient into the catastrophic stage?", ["$2,100","$615","$8,000","$3,000"], "In catastrophic the plan pays 100% and the patient pays $0. The donut hole ended in 2025.", "PBM · Slide 48"],
+    ["TrOOP: $615 deductible + $900 copays paid. How much is left to reach the 2026 limit?", ["$585","$1,515","$1,485","$2,100"], "$615 + $900 = $1,515. $2,100 − $1,515 = $585.", "PBM · Slide 49"],
+    ["Which counts toward TrOOP?", ["Extra Help (LIS) payments","Monthly premiums","Drugs the plan does not cover","The plan's own share of the drug cost"], "Patient deductible, copays, coinsurance, LIS and some assistance programs count.", "PBM · Slide 49"],
+    ["On the standard Part D plan in 2026, what does the patient pay in initial coverage?", ["25% coinsurance","20% coinsurance","10% coinsurance","Nothing"], "Initial coverage lasts until TrOOP reaches $2,100.", "PBM · Slide 48"],
+    ["What is an MA-PD?", ["A Medicare Advantage plan that includes drug coverage","A standalone Part D drug plan","Medigap Plan D","A Medicaid drug plan"], "A standalone drug-only plan added to Original Medicare is a PDP.", "PBM · Slide 46"],
+    ["Who runs Extra Help (Low Income Subsidy)?", ["Social Security together with Medicare","The PBM","Each state","The drug manufacturer"], "Two levels: full and partial. We record LIS status and level on Med D plans.", "PBM · Slide 50"],
+    ["Which company owns Express Scripts?", ["Cigna Group","CVS Health","UnitedHealth Group","Humana"], "CVS Caremark = CVS Health. Optum Rx = UnitedHealth Group.", "PBM · Slide 62"],
+    ["Which of these is NOT a PBM job?", ["Filling the prescription at the counter","Building the formulary","Negotiating drug prices and rebates","Processing pharmacy claims"], "A PBM is not an insurer and not a pharmacy. It runs the drug side of the benefit.", "PBM · Slide 59"],
+    ["Tablets filled at a pharmacy and taken at home usually fall under:", ["The pharmacy benefit (Part D for Medicare)","The medical benefit (Part B)","Medicare Part A","Medigap"], "Some specialty drugs can fall under either benefit, so confirm which applies.", "PBM · Slides 46, 57"],
+    ["Which is a common PBM verification mistake?", ["Assuming the health plan and the PBM are the same company","Calling a live PBM rep","Recording the rep's name","Asking for the BIN"], "Others: wrong plan year or formulary, missing limits, missing TrOOP, not recording PA status.", "PBM · Slide 91"],
+    ["In pharmacy benefits, what usually sets the copay amount?", ["The drug's tier","The allowed amount","The diagnosis code","The place of service"], "Higher tiers usually mean the patient pays more.", "PBM · Slide 35"],
+  ]
+},
+{
+  id: "pbm-fields", wf: "pharmbv", title: "PBM Call Fields and PA",
+  source: "Pharmacy BV Training · Ch. 5–6",
+  blurb: "When-to-ask rules for every field, cost share order, PA status guide, module routing and program-specific questions.",
+  qs: [
+    ["Which cost do you ask for first on a PBM call?", ["Estimated patient pay (EPP)","Coinsurance","Copay","Deductible met"], "If the rep gives EPP, you're done. Otherwise coinsurance, then copay.", "PBM · Slide 87"],
+    ["When do you ask for the copay?", ["Only if the rep gave neither EPP nor coinsurance","Always","Only if EPP was given","Only on Med D plans"], "EPP → coinsurance → copay.", "PBM · Slides 87–88"],
+    ["When do you ask about the Annual Benefit Cap?", ["When the plan type is not Med D","Only on Med D plans","Only when the drug is tier 3 or higher","Never"], "", "PBM · Slides 76, 89"],
+    ["When do you ask about Low Income Subsidy and its level?", ["Only when the plan type is Med D","On every plan","When the plan is not Med D","Only when the drug isn't covered"], "", "PBM · Slides 76, 89"],
+    ["When do you ask for the TrOOP max?", ["Only when the plan type is Med D","When the plan is not Med D","Always","When the drug is tier 3+"], "TrOOP replaces the OOP max questions on Part D plans.", "PBM · Slides 49, 84"],
+    ["When do you ask for the family deductible and individual / family OOP max?", ["When the plan type is not Med D","Only on Med D plans","Only when the drug isn't covered","Only for program-specific cases"], "Individual deductible is always asked.", "PBM · Slide 84"],
+    ["When do you ask about the Tier Exception Process?", ["When the drug tier is 3 or higher","For every tier","For tier 1 only","Only when the drug isn't covered"], "", "PBM · Slides 77, 89"],
+    ["The rep gives a plan term date of 12/31/9999. What does it usually mean?", ["No end date is on file","The plan has terminated","A data error; end the call","Coverage starts on that date"], "", "PBM · Slide 75"],
+    ["What is the BIN?", ["A six-digit number identifying the processor that handles the plan's pharmacy claims","The member's ID","The employer group number","The PA reference number"], "PCN works with the BIN to identify the specific plan at the processor.", "PBM · Slides 76–77"],
+    ["The drug is not covered because PA is required. Which module next?", ["Prior Authorization","Coverage / Formulary Exception","Exception Appeals","None; close the case"], "PA or step therapy required → PA module. If a denied PA is on file, also PA Appeals.", "PBM · Slides 80, 103"],
+    ["The drug is not covered because it is excluded from the drug list. Which module next?", ["Coverage / Formulary Exception","Prior Authorization","PA Appeals","Specialty pharmacy"], "Any reason other than PA or step therapy → Coverage / Formulary Exception.", "PBM · Slide 103"],
+    ["What is our scope on prior authorization?", ["Verify PA information; never start, update or submit one","Start new PA requests","Update existing PAs","Promise approval to the provider"], "We read the status. Issues go to the team that handles PA.", "PBM · Slides 98–102"],
+    ["PA status is Expired. What do you ask first?", ["Whether any other auth is already filed apart from the expired one","Whether the patient wants to appeal","The denial reason","Nothing; record expired"], "If none: can it be extended? If not, collect the expired auth's ref, dates and next steps, and check whether a new PA can be submitted.", "PBM · Slide 101"],
+    ["The rep says PA is not required. What do you do?", ["Check whether any auth info is on file; if not, nothing more to collect","Collect submission methods","Collect appeal details","Record PA pending"], "", "PBM · Slide 101"],
+    ["PA is Approved. What do you record?", ["Auth reference number, approval dates and approved quantity","Submission method","Denial reason","Available appeal count"], "", "PBM · Slide 101"],
+    ["How many unique specialty pharmacies should you try to collect contact details for?", ["At least 2","Exactly 1","At least 5","None"], "Name, phone and fax for each.", "PBM · Slide 82"],
+    ["Maya's rep says: Drug X covered, Tier 3, PA required. What else do you ask?", ["Whether a PA is on file, its status, the PA dept contact, TAT, and the tier exception process","Nothing more","Only the copay","Only the BIN"], "Tier 3 triggers the tier exception question. Also record rep name, reference number and source.", "PBM · Slide 94"],
+    ["JJ Neuroscience: which is correct?", ["Ask REMS for the preferred SP; do NOT ask copay accumulator / maximizer, even on commercial plans","Ask the accumulator question on commercial plans","Check Biologics and Onco360 network status","Record the AFP as Yes / No only"], "", "PBM · Slide 150"],
+    ["Orgovyx: which specialty pharmacies' network status do you check?", ["Biologics and Onco360","CVS Caremark and OptumRx","CenterWell and Orsini","Option Care and Accredo"], "Get EPP details for whichever is in-network.", "PBM · Slide 150"],
+    ["Leo program: how is the alternate funding (AFP) question handled?", ["Ask the main question and the enrollment check, recorded Yes / No only, no follow-ups","The full AFP question with five follow-ups","Skip the AFP question","Ask only for the vendor name"], "GSK and Sandoz Deno ask the full AFP with five follow-ups.", "PBM · Slides 150–152"],
+    ["Ipsen Onivyde: where do you verify network status?", ["CVS Caremark, CenterWell Specialty Pharmacy and OptumRx Specialty Pharmacy","Biologics and Onco360","Orsini and Option Care","Accredo only"], "", "PBM · Slide 152"],
+  ]
+},
+];
+
+const FINALS = [
+  { id: "final-medbv", wf: "medbv", title: "MedBV Final Assessment", size: 25, from: ["dashboard","mm-foundations","mm-compliance","mm-eligibility","mm-approvals","mm-callflow"], blurb: "25 random questions from Dashboard plus all five MM segments." },
+  { id: "final-pharmbv", wf: "pharmbv", title: "PharmBV Final Assessment", size: 20, from: ["dashboard","pbm-foundations","pbm-fields"], blurb: "20 random questions from Dashboard plus both PBM segments." },
+];
+
+const PASS = 85;
+const WF_LABEL = { all: "All workflows", medbv: "MedBV · MM", pharmbv: "PharmBV" };
+const app = document.getElementById("app");
+let filter = "every";
+let run = null;
+
+function getBest() { try { return JSON.parse(localStorage.getItem("bvq-best") || "{}"); } catch (e) { return {}; } }
+function saveBest(id, pct) {
+  try {
+    const m = getBest();
+    if (m[id] == null || pct > m[id]) { m[id] = pct; localStorage.setItem("bvq-best", JSON.stringify(m)); }
+  } catch (e) {}
+}
+const HKEY = "bvq-history";
+function getHistory() { try { return JSON.parse(localStorage.getItem(HKEY) || "[]"); } catch (e) { return []; } }
+function saveAttempt(a) { try { const h = getHistory(); h.push(a); localStorage.setItem(HKEY, JSON.stringify(h)); } catch (e) {} }
+function getName() { try { return localStorage.getItem("bvq-name") || ""; } catch (e) { return ""; } }
+function setName(n) { try { localStorage.setItem("bvq-name", n); } catch (e) {} }
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function findQuiz(id) { return QUIZZES.find(q => q.id === id) || FINALS.find(f => f.id === id); }
+
+function bestBadge(id) {
+  const b = getBest()[id];
+  if (b == null) return '<span class="best">Not taken</span>';
+  return '<span class="best ' + (b >= PASS ? "pass" : "fail") + '">Best ' + b + '%</span>';
+}
+
+function renderHome() {
+  run = null;
+  const show = q => filter === "every" || q.wf === filter || q.wf === "all";
+  const quizCards = QUIZZES.filter(show).map(q =>
+    '<button class="card" data-go="' + q.id + '">' +
+      '<div class="meta"><span class="tag ' + (q.wf === "all" ? "all" : "") + '">' + WF_LABEL[q.wf] + '</span><span>' + esc(q.source) + '</span></div>' +
+      '<h3>' + esc(q.title) + '</h3><p>' + esc(q.blurb) + '</p>' +
+      '<div class="foot"><span class="count">' + q.qs.length + ' questions</span>' + bestBadge(q.id) + '</div>' +
+    '</button>').join("");
+  const finals = FINALS.filter(f => filter === "every" || f.wf === filter).map(f =>
+    '<button class="card final" data-go="' + f.id + '">' +
+      '<div class="meta"><span class="tag">' + WF_LABEL[f.wf] + '</span><span>Mixed, shuffled each time</span></div>' +
+      '<h3>' + esc(f.title) + '</h3><p>' + esc(f.blurb) + '</p>' +
+      '<div class="foot"><span class="count">' + f.size + ' questions</span>' + bestBadge(f.id) + '</div>' +
+    '</button>').join("");
+  const chip = (v, l) => '<button class="chip" data-filter="' + v + '" aria-pressed="' + (filter === v) + '">' + l + '</button>';
+  app.innerHTML =
+    '<header class="head">' +
+      '<span class="eyebrow">100ms Operations · New agent training</span>' +
+      '<h1>BV Training Quizzes</h1>' +
+      '<p class="lede">One quiz per training segment, grouped by workflow. You get feedback after every answer, with the deck and slide to revise. Pass mark is ' + PASS + '%, the same as the daily MCQ.</p>' +
+      '<div class="chips" role="group" aria-label="Filter by workflow">' + chip("every", "All quizzes") + chip("medbv", "MedBV · MM") + chip("pharmbv", "PharmBV") + '</div>' +
+      '<div><button class="btn" id="perf">My performance report →</button></div>' +
+    '</header>' +
+    '<section class="section"><div class="section-head"><h2>Segment quizzes</h2><span class="hint">Dashboard Training applies to every workflow</span></div><div class="grid">' + quizCards + '</div></section>' +
+    (finals ? '<section class="section"><div class="section-head"><h2>Final assessments</h2><span class="hint">Random draw across segments</span></div><div class="grid">' + finals + '</div></section>' : '') +
+    '<p class="note">Your scores and attempt history are saved in this browser on this device only, and nobody else can see them. Open “My performance” to review them or print them. Questions come from the A–Z of Case Management deck, MM Decks 1–5 and the Pharmacy Benefits Verification deck.</p>';
+  app.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { filter = b.dataset.filter; renderHome(); });
+  app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { location.hash = b.dataset.go; });
+  document.getElementById("perf").onclick = () => { location.hash = "report"; };
+}
+
+function fmtDate(t) { return new Date(t).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
+function fmtDur(s) { return s >= 60 ? Math.floor(s / 60) + "m " + (s % 60) + "s" : s + "s"; }
+
+function renderReport() {
+  run = null;
+  const h = getHistory();
+  const name = getName();
+  const head =
+    '<div class="bar"><button class="back" id="back">← All quizzes</button></div>' +
+    '<header class="head"><span class="eyebrow">BV Training Quizzes · Performance report</span><h1>My performance</h1>' +
+      '<p class="printonly" id="pname">' + (name ? "Agent: " + esc(name) + " · " : "") + "Printed " + fmtDate(Date.now()) + '</p>' +
+      '<p class="lede noprint">Every attempt you make is saved here, on this device only. Use it to find weak topics, then revise the slides listed.</p>' +
+      '<div class="namebox"><label for="nm">Your name (shown on the printed report)</label><input id="nm" value="' + esc(name) + '" placeholder="e.g. Priya S." autocomplete="name"></div>' +
+    '</header>';
+  if (!h.length) {
+    app.innerHTML = head + '<div class="qcard"><p class="lede">No attempts yet. Take a quiz and your results will show up here.</p><div class="actions"><button class="btn" id="home2">Browse quizzes</button></div></div>';
+    wireReport();
+    return;
+  }
+  const avg = Math.round(h.reduce((a, x) => a + x.pct, 0) / h.length);
+  const answered = h.reduce((a, x) => a + x.total, 0), correct = h.reduce((a, x) => a + x.score, 0);
+  const tried = new Set(h.map(x => x.id));
+  const passed = new Set(h.filter(x => x.pct >= PASS).map(x => x.id));
+  const all = QUIZZES.concat(FINALS);
+  const tile = (v, l) => '<div class="tile"><span class="v">' + v + '</span><span class="l">' + l + '</span></div>';
+  const tiles = '<div class="tiles">' +
+    tile(h.length, "Attempts") + tile(tried.size + " / " + all.length, "Quizzes tried") +
+    tile(passed.size + " / " + all.length, "Quizzes passed (≥ " + PASS + "%)") +
+    tile(avg + "%", "Average score") + tile(Math.round(correct / answered * 100) + "%", "Accuracy · " + correct + " of " + answered) + '</div>';
+
+  const rows = all.map(q => {
+    const at = h.filter(x => x.id === q.id);
+    if (!at.length) return '<tr><td class="t">' + esc(q.title) + '</td><td>' + WF_LABEL[q.wf] + '</td><td class="num">0</td><td class="num">–</td><td class="num">–</td><td class="num">–</td><td>Not taken</td></tr>';
+    const best = Math.max(...at.map(x => x.pct)), last = at[at.length - 1].pct, first = at[0].pct, d = last - first;
+    const trend = at.length < 2 ? '<span class="count">–</span>' : '<span class="' + (d > 0 ? "up" : d < 0 ? "down" : "") + '">' + (d > 0 ? "+" : "") + d + ' pts</span>';
+    const st = best >= PASS ? '<span class="best pass">Passed</span>' : '<span class="best fail">Not yet</span>';
+    return '<tr><td class="t">' + esc(q.title) + '</td><td>' + WF_LABEL[q.wf] + '</td><td class="num">' + at.length + '</td><td class="num">' + best + '%</td><td class="num">' + last + '%</td><td class="num">' + trend + '</td><td>' + st + '</td></tr>';
+  }).join("");
+  const table = '<div class="tablewrap"><table><thead><tr><th>Quiz</th><th>Workflow</th><th class="num">Attempts</th><th class="num">Best</th><th class="num">Latest</th><th class="num">First → latest</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+
+  const agg = {};
+  h.forEach(x => Object.entries(x.segs || {}).forEach(([k, [c, t]]) => { const g = agg[k] || (agg[k] = [0, 0]); g[0] += c; g[1] += t; }));
+  const segRows = QUIZZES.filter(q => agg[q.id]).map(q => ({ q, c: agg[q.id][0], t: agg[q.id][1], p: Math.round(agg[q.id][0] / agg[q.id][1] * 100) }))
+    .sort((a, b) => a.p - b.p)
+    .map(r => '<div class="seg"><span>' + esc(r.q.title) + '</span><div class="meter" role="img" aria-label="' + r.p + '% correct"><i class="' + (r.p >= PASS ? "pass" : "fail") + '" style="width:' + r.p + '%"></i></div><span class="pct">' + r.p + '% · ' + r.c + '/' + r.t + '</span></div>').join("");
+  const segs = '<div class="segs">' + segRows + '</div>';
+
+  const mm = {};
+  h.forEach(x => (x.missed || []).forEach(m => { const g = mm[m.q] || (mm[m.q] = Object.assign({ n: 0 }, m)); g.n++; }));
+  const top = Object.values(mm).sort((a, b) => b.n - a.n).slice(0, 10);
+  const missList = top.length ? '<div class="review">' + top.map(m =>
+    '<div class="miss"><strong>' + esc(m.q) + '</strong><span class="ans">Correct: ' + esc(m.a) + '</span>' +
+    '<span class="src">Missed ' + m.n + (m.n > 1 ? " times" : " time") + ' · ' + esc(segTitle(m.seg)) + ' · Revise: ' + esc(m.s) + '</span></div>').join("") + '</div>'
+    : '<p class="lede">No missed questions so far.</p>';
+
+  const recent = h.slice().reverse().slice(0, 20).map(x => {
+    const q = findQuiz(x.id);
+    return '<tr><td>' + fmtDate(x.at) + '</td><td class="t">' + esc(q ? q.title : x.id) + '</td><td class="num">' + x.score + '/' + x.total + '</td><td class="num"><span class="best ' + (x.pct >= PASS ? "pass" : "fail") + '">' + x.pct + '%</span></td><td class="num">' + fmtDur(x.secs || 0) + '</td></tr>';
+  }).join("");
+  const recentT = '<div class="tablewrap"><table><thead><tr><th>When</th><th>Quiz</th><th class="num">Score</th><th class="num">%</th><th class="num">Time</th></tr></thead><tbody>' + recent + '</tbody></table></div>';
+
+  app.innerHTML = head + tiles +
+    '<section class="section"><div class="section-head"><h2>By quiz</h2><span class="hint">Pass mark ' + PASS + '%</span></div>' + table + '</section>' +
+    '<section class="section"><div class="section-head"><h2>Accuracy by topic</h2><span class="hint">All attempts, finals included · weakest first</span></div>' + segs + '</section>' +
+    '<section class="section"><h2>Most-missed questions</h2>' + missList + '</section>' +
+    '<section class="section"><h2>Recent attempts</h2>' + recentT + '</section>' +
+    '<div class="actions"><button class="btn ghost" id="reset">Clear my history</button><button class="btn" id="print">Print / save as PDF</button></div>';
+  wireReport();
+}
+function segTitle(id) { const q = findQuiz(id); return q ? q.title : ""; }
+function wireReport() {
+  document.getElementById("back").onclick = () => { location.hash = ""; };
+  const nm = document.getElementById("nm");
+  nm.oninput = () => setName(nm.value.trim());
+  nm.onchange = () => renderReport();
+  const h2 = document.getElementById("home2"); if (h2) h2.onclick = () => { location.hash = ""; };
+  const pr = document.getElementById("print"); if (pr) pr.onclick = () => { setName(nm.value.trim()); renderReport(); window.print(); };
+  const rs = document.getElementById("reset");
+  if (rs) rs.onclick = () => {
+    if (rs.dataset.armed) { try { localStorage.removeItem(HKEY); localStorage.removeItem("bvq-best"); } catch (e) {} renderReport(); return; }
+    rs.dataset.armed = "1"; rs.textContent = "Click again to delete all history";
+  };
+}
+
+function startQuiz(id) {
+  const quiz = findQuiz(id);
+  if (!quiz) { location.hash = ""; return; }
+  let pool;
+  if (quiz.from) {
+    pool = shuffle(quiz.from.flatMap(qid => findQuiz(qid).qs.map(q => q.concat(qid)))).slice(0, quiz.size);
+  } else {
+    pool = shuffle(quiz.qs.map(q => q.concat(quiz.id)));
+  }
+  run = {
+    quiz, idx: 0, score: 0, missed: [], started: Date.now(),
+    items: pool.map(([q, opts, x, s, seg]) => {
+      const order = shuffle(opts.map((_, i) => i));
+      return { q, opts: order.map(i => opts[i]), correct: order.indexOf(0), x, s, seg, picked: null };
+    })
+  };
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const { quiz, idx, items } = run;
+  const it = items[idx];
+  const total = items.length;
+  const done = it.picked !== null;
+  const letters = "ABCD";
+  const opts = it.opts.map((o, i) => {
+    let cls = "opt";
+    if (done) cls += i === it.correct ? " right" : (i === it.picked ? " wrong" : " dim");
+    return '<button class="' + cls + '" data-i="' + i + '"' + (done ? " disabled" : "") + '><span class="k">' + letters[i] + '</span><span>' + esc(o) + '</span></button>';
+  }).join("");
+  let fb = "";
+  if (done) {
+    const ok = it.picked === it.correct;
+    fb = '<div class="feedback ' + (ok ? "good" : "bad") + '" role="status"><strong>' + (ok ? "Correct" : "Not quite") + '</strong>' +
+      (ok ? "" : '<span>Answer: ' + esc(it.opts[it.correct]) + '</span>') +
+      (it.x ? '<span>' + esc(it.x) + '</span>' : '') +
+      '<span class="src">Revise: ' + esc(it.s) + '</span></div>';
+  }
+  app.innerHTML =
+    '<div class="bar"><button class="back" id="back">← All quizzes</button><span class="count">' + (idx + 1) + ' / ' + total + ' · Score ' + run.score + '</span></div>' +
+    '<div class="head"><span class="eyebrow">' + esc(WF_LABEL[quiz.wf]) + (quiz.source ? ' · ' + esc(quiz.source) : '') + '</span><h1>' + esc(quiz.title) + '</h1></div>' +
+    '<div class="progress" aria-hidden="true"><i style="width:' + ((idx + (done ? 1 : 0)) / total * 100) + '%"></i></div>' +
+    '<div class="qcard"><p class="qtext">' + esc(it.q) + '</p><div class="opts">' + opts + '</div>' + fb +
+    '<div class="actions">' + (done ? '<button class="btn" id="next">' + (idx + 1 === total ? "See results" : "Next question") + '</button>' : '<span class="hint">Press A–D or 1–4 to answer</span>') + '</div></div>';
+  document.getElementById("back").onclick = () => { location.hash = ""; };
+  app.querySelectorAll(".opt").forEach(b => b.onclick = () => pick(+b.dataset.i));
+  const nx = document.getElementById("next");
+  if (nx) { nx.onclick = next; nx.focus(); }
+}
+
+function pick(i) {
+  const it = run.items[run.idx];
+  if (it.picked !== null) return;
+  it.picked = i;
+  if (i === it.correct) run.score++; else run.missed.push(it);
+  renderQuestion();
+}
+function next() {
+  if (run.idx + 1 < run.items.length) { run.idx++; renderQuestion(); window.scrollTo(0, 0); }
+  else renderResults();
+}
+
+function renderResults() {
+  const { quiz, items, score, missed } = run;
+  const pct = Math.round(score / items.length * 100);
+  const pass = pct >= PASS;
+  saveBest(quiz.id, pct);
+  const segs = {};
+  items.forEach(it => { const g = segs[it.seg] || (segs[it.seg] = [0, 0]); g[1]++; if (it.picked === it.correct) g[0]++; });
+  saveAttempt({ id: quiz.id, at: Date.now(), secs: Math.round((Date.now() - run.started) / 1000), score, total: items.length, pct, segs,
+    missed: missed.map(it => ({ q: it.q, a: it.opts[it.correct], s: it.s, seg: it.seg })) });
+  const review = missed.map(it =>
+    '<div class="miss"><strong>' + esc(it.q) + '</strong>' +
+    '<span class="yours">You chose: ' + esc(it.opts[it.picked]) + '</span>' +
+    '<span class="ans">Correct: ' + esc(it.opts[it.correct]) + '</span>' +
+    (it.x ? '<span class="why">' + esc(it.x) + '</span>' : '') +
+    '<span class="src">Revise: ' + esc(it.s) + '</span></div>').join("");
+  app.innerHTML =
+    '<div class="bar"><button class="back" id="back">← All quizzes</button></div>' +
+    '<div class="head"><span class="eyebrow">' + esc(WF_LABEL[quiz.wf]) + ' · Results</span><h1>' + esc(quiz.title) + '</h1></div>' +
+    '<div class="qcard"><div class="score"><span class="big">' + pct + '%</span><div style="display:grid;gap:6px">' +
+      '<span class="pill ' + (pass ? "pass" : "fail") + '">' + (pass ? "Passed" : "Below " + PASS + "%") + '</span>' +
+      '<span class="count">' + score + ' of ' + items.length + ' correct</span></div></div>' +
+      '<p class="lede">' + (pass ? (missed.length ? "Passed. Go over the questions you missed below." : "Every answer correct.") : "Go back over the slides listed below, then take the quiz again. Questions and options are reshuffled.") + '</p>' +
+      '<div class="actions"><button class="btn ghost" id="home">All quizzes</button><button class="btn ghost" id="perf">My performance</button><button class="btn" id="again">Take it again</button></div></div>' +
+    (missed.length ? '<section class="section"><h2>Questions to review (' + missed.length + ')</h2><div class="review">' + review + '</div></section>' : '');
+  document.getElementById("back").onclick = () => { location.hash = ""; };
+  document.getElementById("home").onclick = () => { location.hash = ""; };
+  document.getElementById("again").onclick = () => startQuiz(quiz.id);
+  document.getElementById("perf").onclick = () => { location.hash = "report"; };
+  window.scrollTo(0, 0);
+}
+
+document.addEventListener("keydown", e => {
+  if (!run || e.metaKey || e.ctrlKey || e.altKey) return;
+  const it = run.items[run.idx];
+  if (!it) return;
+  const k = e.key.toLowerCase();
+  const map = { "1": 0, "2": 1, "3": 2, "4": 3, a: 0, b: 1, c: 2, d: 3 };
+  if (it.picked === null && k in map && map[k] < it.opts.length) { e.preventDefault(); pick(map[k]); }
+});
+
+function route() {
+  const id = location.hash.replace("#", "");
+  if (id === "report") renderReport(); else if (id && findQuiz(id)) startQuiz(id); else renderHome();
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+route();
+</script>
+
+</body></html>
