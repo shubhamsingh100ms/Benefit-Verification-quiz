@@ -152,6 +152,9 @@ tr:last-child td { border-bottom: none; }
 .namebox { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 0.9rem; }
 .namebox input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; min-width: 0; flex: 1 1 200px; max-width: 320px; }
 .printonly { display: none; }
+.field { display: grid; gap: 6px; font-weight: 500; font-size: 0.9rem; }
+.field input { font: inherit; font-weight: 400; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; max-width: 420px; }
+.err { color: var(--bad); font-size: 0.85rem; }
 @media (max-width: 560px) { .seg { grid-template-columns: 1fr 96px; } .seg .meter { grid-column: 1 / -1; grid-row: 2; } }
 @media print {
   body { background: #fff; color: #000; padding: 0; }
@@ -391,6 +394,8 @@ const FINALS = [
   { id: "final-pharmbv", wf: "pharmbv", title: "PharmBV Final Assessment", size: 20, from: ["dashboard","pbm-foundations","pbm-fields"], blurb: "20 random questions from Dashboard plus both PBM segments." },
 ];
 
+/* Paste your Google Apps Script web app URL between the quotes to send results to your Google Sheet. Leave empty to keep results on the device only. */
+const COLLECT_URL = "https://script.google.com/macros/s/AKfycbx9Kj2ums6Qfgjubghi4iDus-LErxifUaLc6JjeOvI9-bWMGCambm1Ar9yXzaSlfO4V/exec";
 const PASS = 85;
 const WF_LABEL = { all: "All workflows", medbv: "MedBV · MM", pharmbv: "PharmBV" };
 const app = document.getElementById("app");
@@ -407,8 +412,57 @@ function saveBest(id, pct) {
 const HKEY = "bvq-history";
 function getHistory() { try { return JSON.parse(localStorage.getItem(HKEY) || "[]"); } catch (e) { return []; } }
 function saveAttempt(a) { try { const h = getHistory(); h.push(a); localStorage.setItem(HKEY, JSON.stringify(h)); } catch (e) {} }
-function getName() { try { return localStorage.getItem("bvq-name") || ""; } catch (e) { return ""; } }
-function setName(n) { try { localStorage.setItem("bvq-name", n); } catch (e) {} }
+function getUser() { try { const u = JSON.parse(localStorage.getItem("bvq-user") || "null"); return u && u.name ? u : null; } catch (e) { return null; } }
+function setUser(u) { try { localStorage.setItem("bvq-user", JSON.stringify(u)); } catch (e) {} }
+function getName() { const u = getUser(); return u ? u.name : ""; }
+
+/* Outbox: results wait here until the Google Sheet confirms receipt, so nothing is lost offline. The sheet ignores duplicates by attempt ID. */
+const QKEY = "bvq-outbox";
+function getOutbox() { try { return JSON.parse(localStorage.getItem(QKEY) || "[]"); } catch (e) { return []; } }
+function setOutbox(q) { try { localStorage.setItem(QKEY, JSON.stringify(q)); } catch (e) {} }
+function post(p) {
+  return fetch(COLLECT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(p) })
+    .then(() => true, () => false);
+}
+async function flushOutbox() {
+  if (!COLLECT_URL) return null;
+  for (const p of getOutbox()) {
+    if (await post(p)) setOutbox(getOutbox().filter(x => x.attemptId !== p.attemptId));
+    else return false;
+  }
+  return true;
+}
+async function sendAttempt(p) {
+  if (!COLLECT_URL) return null;
+  setOutbox(getOutbox().concat(p));
+  if (!getOutbox().some(x => x.attemptId === p.attemptId)) return post(p);
+  return flushOutbox();
+}
+function newId() { try { if (crypto.randomUUID) return crypto.randomUUID(); } catch (e) {} return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10); }
+
+function renderIdentity() {
+  run = null;
+  const u = getUser() || { name: "", empId: "" };
+  app.innerHTML = '<div class="bar"><button class="back" id="back">← All quizzes</button></div>' +
+    '<header class="head"><span class="eyebrow">BV Training Quizzes</span><h1>Who is taking the quiz?</h1>' +
+    '<p class="lede">Your name and employee ID are saved with every result' + (COLLECT_URL ? ' and sent to the training team' : '') + '. Type them the same way every time.</p></header>' +
+    '<form class="qcard" id="idf" novalidate>' +
+      '<label class="field">Full name<input id="f-name" maxlength="80" autocomplete="name" value="' + esc(u.name) + '"></label>' +
+      '<label class="field">Employee ID or work email<input id="f-emp" maxlength="80" value="' + esc(u.empId) + '"></label>' +
+      '<p class="err" id="f-err" role="alert"></p>' +
+      '<div class="actions"><button class="btn" type="submit">Continue</button></div></form>';
+  document.getElementById("back").onclick = goHome;
+  document.getElementById("f-name").focus();
+  document.getElementById("idf").onsubmit = e => {
+    e.preventDefault();
+    const name = document.getElementById("f-name").value.replace(/\s+/g, " ").trim();
+    const empId = document.getElementById("f-emp").value.replace(/\s+/g, "").trim();
+    if (!name || !empId) { document.getElementById("f-err").textContent = "Please enter both your name and your employee ID or email."; return; }
+    setUser({ name, empId });
+    route();
+  };
+}
+function goHome() { if (location.hash && location.hash !== "#") location.hash = ""; else renderHome(); }
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 function findQuiz(id) { return QUIZZES.find(q => q.id === id) || FINALS.find(f => f.id === id); }
@@ -441,14 +495,16 @@ function renderHome() {
       '<h1>BV Training Quizzes</h1>' +
       '<p class="lede">One quiz per training segment, grouped by workflow. You get feedback after every answer, with the deck and slide to revise. Pass mark is ' + PASS + '%, the same as the daily MCQ.</p>' +
       '<div class="chips" role="group" aria-label="Filter by workflow">' + chip("every", "All quizzes") + chip("medbv", "MedBV · MM") + chip("pharmbv", "PharmBV") + '</div>' +
+      '<div class="namebox">' + (getUser() ? '<span>Taking quizzes as <strong>' + esc(getUser().name) + '</strong> · ' + esc(getUser().empId) + '</span><button class="back" id="who">Not you? Change</button>' : '<span class="hint">You will be asked for your name and employee ID before your first quiz.</span>') + '</div>' +
       '<div><button class="btn" id="perf">My performance report →</button></div>' +
     '</header>' +
     '<section class="section"><div class="section-head"><h2>Segment quizzes</h2><span class="hint">Dashboard Training applies to every workflow</span></div><div class="grid">' + quizCards + '</div></section>' +
     (finals ? '<section class="section"><div class="section-head"><h2>Final assessments</h2><span class="hint">Random draw across segments</span></div><div class="grid">' + finals + '</div></section>' : '') +
-    '<p class="note">Your scores and attempt history are saved in this browser on this device only, and nobody else can see them. Open “My performance” to review them or print them. Questions come from the A–Z of Case Management deck, MM Decks 1–5 and the Pharmacy Benefits Verification deck.</p>';
+    '<p class="note">' + (COLLECT_URL ? 'Each finished quiz is sent to the training team with your name and employee ID. Your own history is also kept in this browser.' : 'Your scores and attempt history are saved in this browser on this device only.') + ' Open “My performance” to review them or print them. Questions come from the A–Z of Case Management deck, MM Decks 1–5 and the Pharmacy Benefits Verification deck.</p>';
   app.querySelectorAll("[data-filter]").forEach(b => b.onclick = () => { filter = b.dataset.filter; renderHome(); });
   app.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { location.hash = b.dataset.go; });
   document.getElementById("perf").onclick = () => { location.hash = "report"; };
+  const who = document.getElementById("who"); if (who) who.onclick = renderIdentity;
 }
 
 function fmtDate(t) { return new Date(t).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
@@ -462,8 +518,8 @@ function renderReport() {
     '<div class="bar"><button class="back" id="back">← All quizzes</button></div>' +
     '<header class="head"><span class="eyebrow">BV Training Quizzes · Performance report</span><h1>My performance</h1>' +
       '<p class="printonly" id="pname">' + (name ? "Agent: " + esc(name) + " · " : "") + "Printed " + fmtDate(Date.now()) + '</p>' +
-      '<p class="lede noprint">Every attempt you make is saved here, on this device only. Use it to find weak topics, then revise the slides listed.</p>' +
-      '<div class="namebox"><label for="nm">Your name (shown on the printed report)</label><input id="nm" value="' + esc(name) + '" placeholder="e.g. Priya S." autocomplete="name"></div>' +
+      '<p class="lede noprint">Every attempt you make on this device is listed here. Use it to find weak topics, then revise the slides listed.</p>' +
+      '<div class="namebox"><span>Agent: <strong>' + esc(name || "not set") + '</strong>' + (getUser() ? ' · ' + esc(getUser().empId) : '') + '</span><button class="back" id="who">Change</button></div>' +
     '</header>';
   if (!h.length) {
     app.innerHTML = head + '<div class="qcard"><p class="lede">No attempts yet. Take a quiz and your results will show up here.</p><div class="actions"><button class="btn" id="home2">Browse quizzes</button></div></div>';
@@ -523,11 +579,9 @@ function renderReport() {
 function segTitle(id) { const q = findQuiz(id); return q ? q.title : ""; }
 function wireReport() {
   document.getElementById("back").onclick = () => { location.hash = ""; };
-  const nm = document.getElementById("nm");
-  nm.oninput = () => setName(nm.value.trim());
-  nm.onchange = () => renderReport();
+  document.getElementById("who").onclick = renderIdentity;
   const h2 = document.getElementById("home2"); if (h2) h2.onclick = () => { location.hash = ""; };
-  const pr = document.getElementById("print"); if (pr) pr.onclick = () => { setName(nm.value.trim()); renderReport(); window.print(); };
+  const pr = document.getElementById("print"); if (pr) pr.onclick = () => window.print();
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => {
     if (rs.dataset.armed) { try { localStorage.removeItem(HKEY); localStorage.removeItem("bvq-best"); } catch (e) {} renderReport(); return; }
@@ -538,6 +592,7 @@ function wireReport() {
 function startQuiz(id) {
   const quiz = findQuiz(id);
   if (!quiz) { location.hash = ""; return; }
+  if (!getUser()) { renderIdentity(); return; }
   let pool;
   if (quiz.from) {
     pool = shuffle(quiz.from.flatMap(qid => findQuiz(qid).qs.map(q => q.concat(qid)))).slice(0, quiz.size);
@@ -604,6 +659,14 @@ function renderResults() {
   saveBest(quiz.id, pct);
   const segs = {};
   items.forEach(it => { const g = segs[it.seg] || (segs[it.seg] = [0, 0]); g[1]++; if (it.picked === it.correct) g[0]++; });
+  const u = getUser() || { name: "", empId: "" };
+  const payload = {
+    attemptId: newId(), name: u.name, empId: u.empId,
+    quizId: quiz.id, quizTitle: quiz.title, workflow: WF_LABEL[quiz.wf], type: quiz.from ? "Final" : "Segment",
+    startedAt: new Date(run.started).toISOString(), finishedAt: new Date().toISOString(),
+    durationSec: Math.round((Date.now() - run.started) / 1000), correct: score, total: items.length, pct, passed: pass,
+    answers: items.map((it, n) => ({ n: n + 1, topic: segTitle(it.seg), question: it.q, chosen: it.opts[it.picked], correctAnswer: it.opts[it.correct], isCorrect: it.picked === it.correct, source: it.s }))
+  };
   saveAttempt({ id: quiz.id, at: Date.now(), secs: Math.round((Date.now() - run.started) / 1000), score, total: items.length, pct, segs,
     missed: missed.map(it => ({ q: it.q, a: it.opts[it.correct], s: it.s, seg: it.seg })) });
   const review = missed.map(it =>
@@ -619,12 +682,17 @@ function renderResults() {
       '<span class="pill ' + (pass ? "pass" : "fail") + '">' + (pass ? "Passed" : "Below " + PASS + "%") + '</span>' +
       '<span class="count">' + score + ' of ' + items.length + ' correct</span></div></div>' +
       '<p class="lede">' + (pass ? (missed.length ? "Passed. Go over the questions you missed below." : "Every answer correct.") : "Go back over the slides listed below, then take the quiz again. Questions and options are reshuffled.") + '</p>' +
+      (COLLECT_URL ? '<p class="hint" id="sync">Saving your result…</p>' : '') +
       '<div class="actions"><button class="btn ghost" id="home">All quizzes</button><button class="btn ghost" id="perf">My performance</button><button class="btn" id="again">Take it again</button></div></div>' +
     (missed.length ? '<section class="section"><h2>Questions to review (' + missed.length + ')</h2><div class="review">' + review + '</div></section>' : '');
   document.getElementById("back").onclick = () => { location.hash = ""; };
   document.getElementById("home").onclick = () => { location.hash = ""; };
   document.getElementById("again").onclick = () => startQuiz(quiz.id);
   document.getElementById("perf").onclick = () => { location.hash = "report"; };
+  sendAttempt(payload).then(ok => {
+    const el = document.getElementById("sync");
+    if (el && ok !== null) el.textContent = ok ? "✓ Result saved to training records." : "Couldn't reach training records right now. It will be sent automatically the next time you open the quiz.";
+  });
   window.scrollTo(0, 0);
 }
 
@@ -644,6 +712,7 @@ function route() {
 }
 window.addEventListener("hashchange", route);
 route();
+flushOutbox();
 </script>
 
 </body></html>
